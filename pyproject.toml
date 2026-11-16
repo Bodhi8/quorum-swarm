@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quorum-swarm"
+version = "0.1.0"
+description = "A learned control plane for agent swarms: ML steers the swarm, humans steer the ML."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Vector1" }]
+# Open core. Quorum Pro (learned gate, adaptive field, energy pack) is proprietary and separate.
+license = { text = "Apache-2.0" }
+dependencies = ["numpy>=1.24", "networkx>=3.0"]
+
+[project.optional-dependencies]
+llm = ["anthropic>=0.40"]
+quantum-dwave = ["dwave-ocean-sdk>=7"]
+quantum-ibm = ["qiskit>=1.2", "qiskit-ibm-runtime>=0.30", "scipy>=1.10"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+quorum = "quorum.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
+markers = ["slow: builds the Grid2Op scenario catalog (a few seconds)"]
