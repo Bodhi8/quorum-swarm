@@ -1,23 +1,46 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "quorum-swarm"
-version = "0.1.0"
-description = "A learned control plane for agent swarms: ML steers the swarm, humans steer the ML."
+version = "0.2.0"
+description = "A learned control plane for agent swarms: physics-informed coordination, a shadow twin for every policy change, and human gates. ML steers the swarm; humans steer the ML."
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "Vector1" }]
+authors = [{ name = "Brian Curry", email = "brian@vector1.ai" }]
 # Open core. Quorum Pro (learned gate, adaptive field, energy pack) is proprietary and separate.
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+keywords = [
+    "agent swarm", "multi-agent systems", "agentic AI", "LLM agents", "stigmergy",
+    "human-in-the-loop", "physics-informed", "multi-armed bandit", "QUBO", "quantum annealing",
+    "power grid", "unit commitment", "simulation",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = ["numpy>=1.24", "networkx>=3.0"]
 
 [project.optional-dependencies]
 llm = ["anthropic>=0.40"]
 quantum-dwave = ["dwave-ocean-sdk>=7"]
 quantum-ibm = ["qiskit>=1.2", "qiskit-ibm-runtime>=0.30", "scipy>=1.10"]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "build>=1.0", "twine>=5.0"]
+
+[project.urls]
+Homepage = "https://vector1.ai"
+Repository = "https://github.com/Bodhi8/quorum-swarm"
+Issues = "https://github.com/Bodhi8/quorum-swarm/issues"
+Changelog = "https://github.com/Bodhi8/quorum-swarm/blob/main/CHANGELOG.md"
 
 [project.scripts]
 quorum = "quorum.cli:main"

@@ -1,3 +1,16 @@
+#   Copyright 2026 Brian Curry / Vector1 Research
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 """The swarm runtime: three loops at three speeds.
 
 * fast loop (ticks):     scouts read the field, analysts evaluate, skeptics
@@ -21,7 +34,7 @@ from .events import EventBus
 from .field import FieldKnobs, SemanticField
 from .gates import GateDecision, GateKeeper, Proposal
 from .intent import Intent
-from .llm import LLMBackend, MockLLM
+from .llm import LLMBackend, MeteredLLM, MockLLM
 from .safety import Budget, SafetyMonitor
 
 
@@ -35,6 +48,7 @@ class SwarmConfig:
     twin_every: int = 3  # episodes between knob proposals
     twin_scenarios: int = 5
     twin_tolerance: float = 0.05  # candidate must win by this margin (normalized objective)
+    gate_aware: bool = True  # prefer near-best plans the gate predicts a human will approve
 
 
 @dataclass
@@ -94,7 +108,7 @@ class Swarm:
         self.controller = controller
         self.gatekeeper = gatekeeper
         self.bus = bus or EventBus(keep=False)
-        self.llm = llm or MockLLM()
+        self.llm = MeteredLLM(llm or MockLLM())
         self.safety = safety or SafetyMonitor()
         self.config = config or SwarmConfig()
         self.knobs = knobs or FieldKnobs()
@@ -201,7 +215,7 @@ class Swarm:
 
         Only applies when the gate can predict approvals (a learned gate).
         """
-        if res.best is None or not hasattr(self.gatekeeper.gate, "predict"):
+        if res.best is None or not self.config.gate_aware or not hasattr(self.gatekeeper.gate, "predict"):
             return res.best
         scale = max(abs(res.baseline_score), 1e-6)
         best_val = res.best.robust if res.best.robust is not None else res.best.score
@@ -224,7 +238,9 @@ class Swarm:
         bus.episode, bus.tick = ep, 0
         sit = d.reset(self.scenario_rng)
         bus.publish("episode_start", scenario=d.describe(sit, None))
+        llm_before = self.llm.snapshot()
         res = self.search(sit, self.knobs, self.rng, learn=True)
+        llm_after = self.llm.snapshot()
 
         interrupted = False
         approved = False
@@ -250,7 +266,10 @@ class Swarm:
         self.safety.breaker.record(outcome.get("survived", 1.0) > 0.5)
         metrics = dict(outcome)
         metrics.update(interrupts=float(interrupted), compute_cost=res.cost, misses=float(miss),
-                       ticks=float(res.ticks_used), resolved_in_search=float(res.resolved))
+                       ticks=float(res.ticks_used), resolved_in_search=float(res.resolved),
+                       llm_calls=float(llm_after[0] - llm_before[0]),
+                       llm_tokens=float(llm_after[1] + llm_after[2] - llm_before[1] - llm_before[2]),
+                       llm_usd=float(llm_after[3] - llm_before[3]))
         reward = self.compiled.reward(metrics)
         result = EpisodeResult(ep, metrics, reward, decision.action, approved, self.knobs.as_dict(),
                                dict(self._last_arm_usage))

@@ -1,3 +1,16 @@
+#   Copyright 2026 Brian Curry / Vector1 Research
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 """Command line: run, compare, study gates, benchmark solvers, render replays."""
 from __future__ import annotations
 
@@ -61,6 +74,26 @@ def cmd_gates(a: argparse.Namespace) -> None:
         from .pro import pro_message
 
         print("\n" + pro_message("gates", "learned"))
+
+
+def cmd_ablate(a: argparse.Namespace) -> None:
+    from .experiments import ablation
+
+    res = ablation(a.domain, episodes=a.episodes, seeds=tuple(range(a.seeds)),
+                   progress=lambda r, s: print(f"  {r:<9} seed {s}", file=sys.stderr, flush=True))
+    rows = []
+    for r in res["rungs"]:
+        if "skipped" in r:
+            rows.append([r["label"], "-", "-", "-", "-", r["skipped"]])
+            continue
+        f = lambda m, pct=False: (f"{100*r[m][0]:.1f}% ±{100*r[m][1]:.1f}" if pct  # noqa: E731
+                                  else f"{r[m][0]:.3f} ±{r[m][1]:.3f}")
+        rows.append([r["label"], f("survived", True), f("compute_cost"), f("interrupts"), f("misses"), ""])
+    print(_table(["configuration", "survived", "compute/ep", "interrupts/ep", "misses/ep", "note"], rows))
+    print(f"{len(res['seeds'])} seeds x {res['episodes']} episodes, mean ±95% CI over seeds")
+    if a.out:
+        Path(a.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(a.out).write_text(json.dumps(res, indent=2))
 
 
 def cmd_uc(a: argparse.Namespace) -> None:
@@ -140,6 +173,13 @@ def main(argv: list[str] | None = None) -> None:
     g.add_argument("--scenarios", type=int, default=60)
     g.add_argument("--seed", type=int, default=0)
     g.set_defaults(fn=cmd_gates)
+
+    ab = sub.add_parser("ablate", help="add one component at a time and measure what each buys")
+    ab.add_argument("--domain", default="grid")
+    ab.add_argument("--episodes", type=int, default=40)
+    ab.add_argument("--seeds", type=int, default=10, help="number of seeds (0..n-1)")
+    ab.add_argument("--out", default=None, help="write full results as JSON")
+    ab.set_defaults(fn=cmd_ablate)
 
     u = sub.add_parser("uc", help="unit commitment QUBO benchmark (classical vs quantum solvers)")
     u.add_argument("--hours", type=int, default=3)

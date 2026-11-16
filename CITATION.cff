@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use Quorum, please cite it as below."
+title: "Quorum: a learned control plane for agent swarms"
+type: software
+authors:
+  - family-names: Curry
+    given-names: Brian J.
+    affiliation: Vector1 Research
+version: 0.2.0
+license: Apache-2.0
+repository-code: "https://github.com/Bodhi8/quorum-swarm"
+url: "https://vector1.ai"
+keywords:
+  - multi-agent systems
+  - agent swarms
+  - stigmergy
+  - human-in-the-loop
+  - physics-informed machine learning
+  - QUBO
+  - power grid

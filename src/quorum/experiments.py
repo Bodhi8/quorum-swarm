@@ -1,3 +1,16 @@
+#   Copyright 2026 Brian Curry / Vector1 Research
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 """Reproducible experiments behind the demo and the papers.
 
 * ``compare``: static wiring vs. Quorum on identical scenario sequences.
@@ -52,6 +65,56 @@ def compare(domain: str = "toy", episodes: int = 40, seeds: tuple[int, ...] = (0
             "curve_cost": [round(_mean([hist[i].metrics["compute_cost"] for hist in rows]), 3) for i in range(episodes)],
             "curve_interrupts": [round(_mean([hist[i].metrics["interrupts"] for hist in rows]), 3) for i in range(episodes)],
         }
+    return out
+
+
+ABLATION_LADDER: list[dict[str, Any]] = [
+    {"name": "static", "label": "Fixed wiring (baseline)", "mode": "static", "gate": "threshold",
+     "field_policy": "static", "gate_aware": False},
+    {"name": "+routing", "label": "+ learned strategy routing", "mode": "quorum", "gate": "threshold",
+     "field_policy": "static", "gate_aware": False},
+    {"name": "+field", "label": "+ self-tuning field (Pro)", "mode": "quorum", "gate": "threshold",
+     "field_policy": "adaptive", "gate_aware": False},
+    {"name": "+gate", "label": "+ learned gate (Pro)", "mode": "quorum", "gate": "learned",
+     "field_policy": "adaptive", "gate_aware": False},
+    {"name": "full", "label": "+ gate-aware plan choice (full Quorum)", "mode": "quorum", "gate": "learned",
+     "field_policy": "adaptive", "gate_aware": True},
+]
+
+ABLATION_METRICS = ("survived", "compute_cost", "interrupts", "misses")
+
+
+def _ci(xs: list[float]) -> tuple[float, float]:
+    """Mean and 95% half-width over seeds (normal approximation)."""
+    a = np.asarray(xs, dtype=float)
+    if len(a) < 2:
+        return float(a.mean()), 0.0
+    return float(a.mean()), float(1.96 * a.std(ddof=1) / np.sqrt(len(a)))
+
+
+def ablation(domain: str = "grid", episodes: int = 40, seeds: tuple[int, ...] = tuple(range(10)),
+             ladder: list[dict[str, Any]] | None = None, progress=None) -> dict[str, Any]:
+    """Add one component at a time, on identical scenarios, and measure what each one buys."""
+    ladder = ladder or ABLATION_LADDER
+    avail = plugins.available()
+    shared = plugins.get_domain(domain)
+    out: dict[str, Any] = {"domain": domain, "episodes": episodes, "seeds": list(seeds), "rungs": []}
+    for rung in ladder:
+        if rung["gate"] not in avail["gates"] or rung["field_policy"] not in avail["field_policies"]:
+            out["rungs"].append({**rung, "skipped": "needs Quorum Pro"})
+            continue
+        per_seed: dict[str, list[float]] = {m: [] for m in ABLATION_METRICS + ("reward",)}
+        for s in seeds:
+            cfg = SwarmConfig(twin_every=3 if rung["field_policy"] != "static" else 0, gate_aware=rung["gate_aware"])
+            sw = build_swarm(shared, mode=rung["mode"], seed=s, llm="mock", gate=rung["gate"],
+                             field_policy=rung["field_policy"], config=cfg)
+            sw.run(episodes)
+            for m in ABLATION_METRICS:
+                per_seed[m].append(_mean([h.metrics[m] for h in sw.history]))
+            per_seed["reward"].append(_mean([h.reward for h in sw.history]))
+            if progress:
+                progress(rung["name"], s)
+        out["rungs"].append({**rung, **{m: _ci(v) for m, v in per_seed.items()}, "per_seed": per_seed})
     return out
 
 

@@ -1,8 +1,39 @@
 Quorum (open core)
-Copyright 2026 Vector1 (Brian James Curry)
+Copyright 2026 Brian Curry / Vector1 Research
 
-This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+This product includes software developed by Brian Curry / Vector1 Research
+(https://vector1.ai).
+
+"Quorum Pro", "Vector1" and "Vector1 Research" are trademarks of Brian Curry.
+The Apache License, Version 2.0 does not grant permission to use these names
+or marks, except as required to describe the origin of the work (see Section 6
+of the License and TRADEMARKS.md).
 
 Quorum Pro (the learned gate, the self-tuning field policy and the energy
-domain pack) is a separate, proprietary product of Vector1 and is NOT covered
-by this license or included in this repository.
+domain pack) is a separate, proprietary product of Brian Curry / Vector1
+Research. It is not included in this repository and is not covered by the
+Apache License.
+
+Quorum depends on, but does not include, NumPy and NetworkX, each distributed
+under its own license. Optional integrations (Anthropic SDK, D-Wave Ocean,
+Qiskit) are not included and carry their own licenses.
+
+Methods first published in this repository, with the release that introduced
+them (see CHANGELOG.md and docs/architecture.md):
+
+  - Stigmergic coordination of LLM agent swarms through a semantic field whose
+    channels evolve by advection-diffusion-reaction on the problem graph, with
+    a CFL-style stability bound that clamps the update step (0.1.0)
+  - A shadow twin that admits a change to swarm coordination policy only after
+    it beats the live policy on replayed scenarios under common random
+    numbers (0.1.0)
+  - Intent compilation of human goals into a soft reward plus hard rules that
+    block plans outright, kept outside the learning loop (0.1.0)
+  - Gate-aware plan selection: among near-best plans, prefer the one a gate
+    predicts a human will approve (0.1.0)
+  - One QUBO interface across exact, simulated-annealing and quantum solvers
+    for coordination and scheduling subproblems (0.1.0)
+
+Derivative works must keep this NOTICE (Apache License 2.0, Section 4(d)) and
+must not imply endorsement by, or affiliation with, Brian Curry or Vector1
+Research.

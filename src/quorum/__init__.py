@@ -1,3 +1,16 @@
+#   Copyright 2026 Brian Curry / Vector1 Research
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 """Quorum: a learned control plane for agent swarms.
 
 ML steers the swarm; humans steer the ML.
@@ -13,7 +26,7 @@ from .safety import Budget, CircuitBreaker, KillSwitch, SafetyMonitor, SwarmHalt
 from .swarm import EpisodeResult, Swarm, SwarmConfig
 from .twin import ShadowTwin
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "Candidate", "CircuitBreaker", "CLIOperator", "Controller", "Domain", "Evaluation", "Event", "EventBus",

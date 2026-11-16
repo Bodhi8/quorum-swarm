@@ -1,3 +1,16 @@
+#   Copyright 2026 Brian Curry / Vector1 Research
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 """LLM backends.
 
 Agents call ``backend.complete(...)``. The default ``MockLLM`` costs
@@ -44,16 +57,22 @@ class MockLLM:
 
 
 class AnthropicLLM:
-    """Claude via the Anthropic SDK. Prices are USD per million tokens."""
+    """Claude via the Anthropic SDK.
+
+    Prices are USD per million tokens. They are not hard-coded: pass them, or set
+    QUORUM_USD_IN / QUORUM_USD_OUT from the current price list. Without them, token
+    counts are still recorded and dollar cost is reported as 0.
+    """
 
     name = "anthropic"
 
-    def __init__(self, model: str = "claude-haiku-5-5", usd_in: float = 1.0, usd_out: float = 5.0):
+    def __init__(self, model: str = "claude-haiku-5-5", usd_in: float | None = None, usd_out: float | None = None):
         import anthropic  # optional dependency
 
         self.client = anthropic.Anthropic()
         self.model = model
-        self.usd_in, self.usd_out = usd_in, usd_out
+        self.usd_in = usd_in if usd_in is not None else float(os.environ.get("QUORUM_USD_IN", 0.0))
+        self.usd_out = usd_out if usd_out is not None else float(os.environ.get("QUORUM_USD_OUT", 0.0))
 
     def complete(self, system: str, prompt: str, max_tokens: int = 300) -> LLMResult:
         msg = self.client.messages.create(
@@ -66,6 +85,29 @@ class AnthropicLLM:
         tin, tout = msg.usage.input_tokens, msg.usage.output_tokens
         usd = tin * self.usd_in / 1e6 + tout * self.usd_out / 1e6
         return LLMResult(text, tin, tout, usd)
+
+
+class MeteredLLM:
+    """Wraps any backend and keeps a running tally of calls, tokens and dollars."""
+
+    def __init__(self, inner: LLMBackend):
+        self.inner = inner
+        self.name = getattr(inner, "name", "llm")
+        self.calls = 0
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.usd = 0.0
+
+    def complete(self, system: str, prompt: str, max_tokens: int = 300) -> LLMResult:
+        r = self.inner.complete(system, prompt, max_tokens)
+        self.calls += 1
+        self.input_tokens += r.input_tokens
+        self.output_tokens += r.output_tokens
+        self.usd += r.usd
+        return r
+
+    def snapshot(self) -> tuple[int, int, int, float]:
+        return self.calls, self.input_tokens, self.output_tokens, self.usd
 
 
 def get_backend(prefer: str = "auto", mock_responder: Callable[[str, str], str] | None = None) -> LLMBackend:
