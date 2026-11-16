@@ -9,8 +9,8 @@
 > **Quorum comes in two parts.** This repository is the **open core** (Apache-2.0): the full runtime,
 > every interface, and a dependency-free demo domain. **[Quorum Pro](#quorum-pro)** is
 > [Vector1](https://vector1.ai)'s commercial extension. It adds the **learned human gate**, the
-> **self-tuning field physics** and the **energy domain pack** that the headline results below depend
-> on. Quorum Pro lives in a private repository; [request access](#get-quorum-pro).
+> **self-tuning field physics** and the **energy domain pack** (the grid stress-response domain used
+> in the results below). Quorum Pro lives in a private repository; [request access](#get-quorum-pro).
 
 Most agent frameworks wire agents together by hand, or let an LLM decide who talks to whom. Quorum
 splits the jobs. LLM agents do the work. Conventional, auditable machine learning decides how the swarm
@@ -72,24 +72,29 @@ installing it upgrades an existing setup without code changes: `mode="quorum"` a
 learned gate and self-tuning field when they are present. Without Pro, the core falls back to the
 threshold gate and fixed field physics, and tells you so.
 
-## Results (v0.1, simulated, with Quorum Pro)
+## Results (v0.2 ablation, simulated)
 
-Grid stress response on the IEEE-14 test grid: a line trips during high load, and doing nothing ends in
-a cascade blackout within ten minutes. 3 seeds × 40 episodes, identical scenario sequences:
+Grid stress response on the IEEE-14 test grid (Quorum Pro's energy domain): a line trips during high
+load, and doing nothing ends in a cascade blackout within ten minutes. Each row adds one component, on
+identical scenario sequences, 10 seeds × 40 episodes, ±95% interval:
 
-| | Fixed wiring | Quorum + Pro |
-|---|---|---|
-| Grid survived | 82.5% | **98.3%** |
-| Compute cost per episode | 5.43 | **2.26** (−58%) |
-| Bad plans auto-applied | 0.017/ep | **0** |
+| | Grid survived | Compute / episode | Bad plans auto-applied |
+|---|---|---|---|
+| Fixed wiring (baseline) | 83.5% ±3.1 | 5.28 | 0.013 / episode |
+| + learned strategy routing (open core) | **98.5% ±0.8** | **2.31** (−56%) | 0.003 / episode |
+| + self-tuning field (Pro) | 98.2% ±1.3 | 2.33 | 0.003 / episode |
+| + learned gate (Pro) | 98.2% ±1.3 | 2.33 | **0** |
 
-Gate study on one stream of plans: the learned gate cut interruptions by 63% versus always-ask, and let
-through 1 bad plan against 5 for a hand-tuned threshold.
+The open core's routing carries most of the gain. The learned gate brings wrongly auto-applied plans to
+zero but asks the operator more often than a hand-tuned risk threshold. The self-tuning field shows no
+measurable effect at this grid size; larger grids are next. Against always-ask, the learned gate cut
+interruptions by 63% in the v0.1 gate study. Full tables, the toy domain and caveats (mock LLM, simulated
+operator) are in [docs/results-v0.2.md](docs/results-v0.2.md); v0.1 numbers in
+[docs/results-v0.1.md](docs/results-v0.1.md).
 
-**What the open core reproduces on its own:** the toy-domain comparison (bandit routing cuts compute
-cost by about 70% at equal outcomes) and the threshold, always-ask and autonomy rows of the gate study.
-The grid and learned-gate rows need Quorum Pro. Full tables and caveats (mock LLM, simulated operator,
-no ablations yet) are in [docs/results-v0.1.md](docs/results-v0.1.md).
+**What the open core reproduces on its own:** the full toy-domain ablation (`quorum ablate --domain toy`:
+routing cuts compute by 73% at equal outcomes) and the open gates in the gate study. Rerunning the grid
+rows needs Quorum Pro's energy domain.
 
 ## Quick start (open core)
 
@@ -110,8 +115,9 @@ python examples/quickstart.py            # build a swarm by hand
 ```bash
 pip install -e ./quorum-pro              # from the private repo
 quorum run --domain grid --episodes 30   # grid stress response, learned gate, self-tuning field
-quorum compare --domain grid             # reproduces the results table above
+quorum compare --domain grid             # fixed wiring vs Quorum + Pro
 quorum uc --hours 3 --solvers exact anneal dwave qaoa   # unit commitment QUBO benchmark
+quorum ablate --domain grid             # reproduces docs/results-v0.2.md
 python examples/benchmark.py             # reproduces docs/results-v0.1.md in full
 ```
 
@@ -120,10 +126,12 @@ python examples/benchmark.py             # reproduces docs/results-v0.1.md in fu
 Quorum Pro is where the research turns into something you can run in production:
 
 * **Learned gate.** It learns your operators' approval patterns from their decisions. It asks only when
-  it is unsure or facing an unfamiliar plan, and it blocks what it is confident they would reject. Fewer
-  interruptions, without letting bad plans through.
+  it is unsure or facing an unfamiliar plan, and it blocks what it is confident they would reject. In
+  testing it auto-applied no plan the operator would have rejected, and asked 63% less often than
+  reviewing every plan.
 * **Self-tuning field.** The swarm's coordination physics adapt to your problem. Every change is proven
-  in the shadow twin before it goes live, and every change is explainable in physical terms.
+  in the shadow twin before it goes live, and every change is explainable in physical terms. (On the
+  14-substation test grid the default physics were already adequate; larger grids are being tested.)
 * **Energy domain pack.** Grid stress response on real AC power-flow simulation, unit commitment
   compiled for classical and quantum solvers, and a live data bridge to the Southwest Power Pool market.
   Built for utilities, co-ops, grid operators and energy traders.
@@ -160,8 +168,8 @@ examples/           quickstart, benchmark
 
 | Version | Open core | Quorum Pro |
 |---|---|---|
-| v0.2 | async runtime with concurrent LLM calls; ablation harness | real-model runs on the grid; learned-gate calibration |
-| v0.3 | multi-step plans; live web dashboard | 36- and 118-substation grids |
+| v0.2 | ablation harness ✓; LLM cost metering ✓; async runtime | real-model runs on the grid; learned-gate calibration to cut interruptions |
+| v0.3 | multi-step plans; live web dashboard | 36- and 118-substation grids; does field tuning pay off at scale? |
 | v0.4 | GNN topology control; credit maps | quantum vs. classical unit-commitment benchmark |
 | Phase 2 | | power-price forecasting and storage arbitrage on SPP data |
 
